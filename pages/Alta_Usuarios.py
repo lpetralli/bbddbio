@@ -42,7 +42,11 @@ def insert_user(nombre, apellido, email, fecha_nacimiento):
         conn.close()
 
 # Interfaz de Streamlit
-st.title('Registro de Usuarios')
+# Título y foto en la misma fila
+
+st.image('labo.jpg')
+
+st.title('✅ Registrar usuario ')
 
 nombre = st.text_input("Nombre", max_chars=50)
 apellido = st.text_input("Apellido", max_chars=50)

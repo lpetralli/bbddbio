@@ -1,17 +1,14 @@
 import streamlit as st
 import psycopg2
-import pandas as pd
+from datetime import datetime
 
-# Configuración de la conexión: reemplaza con tus propios valores
-user = 'mpxkpnvb'
-password = 'xF3SiYaL2rtKywEaWFkDm8MMVM76L1Bs'
-host = 'berry.db.elephantsql.com'
-port = '5432'
-dbname = 'mpxkpnvb'
-
-# Función para conectarse a la base de datos
-@st.cache(hash_funcs={psycopg2.extensions.connection: id})
-def connect_to_db():
+# Configuración de la conexión
+def get_db_connection():
+    user = 'mpxkpnvb'
+    password = 'xF3SiYaL2rtKywEaWFkDm8MMVM76L1Bs'
+    host = 'berry.db.elephantsql.com'
+    port = '5432'
+    dbname = 'mpxkpnvb'
     conn = psycopg2.connect(
         dbname=dbname,
         user=user,
@@ -21,19 +18,44 @@ def connect_to_db():
     )
     return conn
 
-# Interfaz de Streamlit
-st.title('Interfaz de consulta a la base de datos')
-
-# Conectar a la base de datos
-conn = connect_to_db()
-
-# Caja de texto para la consulta SQL
-query = st.text_area("Ingrese su consulta SQL aquí:")
-
-# Botón para ejecutar la consulta
-if st.button('Ejecutar consulta'):
+def email_exists(email):
+    conn = get_db_connection()
     try:
-        data = pd.read_sql_query(query, conn)
-        st.write(data)
-    except Exception as e:
-        st.error(f"Se produjo un error al ejecutar la consulta: {e}")
+        with conn.cursor() as cur:
+            query = "SELECT * FROM usuarios WHERE email = %s"
+            cur.execute(query, (email,))
+            result = cur.fetchone()
+            return result is not None
+    finally:
+        conn.close()
+
+def insert_user(nombre, apellido, email, fecha_nacimiento):
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            query = "INSERT INTO usuarios (nombre, apellido, email, fecha_nacimiento) VALUES (%s, %s, %s, %s)"
+            cur.execute(query, (nombre, apellido, email, fecha_nacimiento))
+            conn.commit()
+    except psycopg2.Error as e:
+        st.error(f"Se produjo un error al guardar el usuario: {e}")
+    finally:
+        conn.close()
+
+# Interfaz de Streamlit
+st.title('Registro de Usuarios')
+
+nombre = st.text_input("Nombre", max_chars=50)
+apellido = st.text_input("Apellido", max_chars=50)
+email = st.text_input("Email", max_chars=100)
+fecha_nacimiento = st.date_input("Fecha de Nacimiento", max_value=datetime.today())
+
+if st.button('Guardar'):
+    if not nombre or not apellido or not email:
+        st.error("Por favor, completa todos los campos.")
+    elif fecha_nacimiento >= datetime.today().date():
+        st.error("La fecha de nacimiento debe ser anterior a la fecha actual.")
+    elif email_exists(email):
+        st.error("El email ya está registrado. Por favor, utiliza otro email.")
+    else:
+        insert_user(nombre, apellido, email, fecha_nacimiento)
+        st.success("Usuario registrado exitosamente.")
